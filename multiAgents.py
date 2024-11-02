@@ -135,7 +135,37 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.minimax(gameState, depth=0, agentIndex=0)[1]  
+
+    def minimax(self, gameState, depth, agentIndex):
+        # We can stop whenever one of the following conditions is met
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState), None
+        # Determine next agent and increase depth if the next agent is Pacman
+        nextAgent = (agentIndex + 1) % gameState.getNumAgents()
+        nextDepth = depth + 1 if nextAgent == 0 else depth
+        # Maximizing Player, which is the pacman
+        if agentIndex == 0:
+            maxScore = float('-inf')
+            bestAction = None
+            for action in gameState.getLegalActions(agentIndex): # TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.minimax(successor, nextDepth, nextAgent)[0]
+                if score > maxScore:
+                    maxScore = score
+                    bestAction = action
+            return maxScore, bestAction
+        # Minimizing Player, which is the ghost
+        else:
+            minScore = float('inf')
+            bestAction = None
+            for action in gameState.getLegalActions(agentIndex): # TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.minimax(successor, nextDepth, nextAgent)[0]
+                if score < minScore:
+                    minScore = score
+                    bestAction = action
+            return minScore, bestAction
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -147,7 +177,45 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.alphabeta(gameState, depth=0, agentIndex=0, alpha=float('-inf'), beta=float('inf'))[1]
+
+    def alphabeta(self, gameState, depth, agentIndex, alpha, beta):
+        # We can stop whenever one of the following conditions is met
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState), None
+        # Determine next agent and depth increase if the next agent is Pacman
+        nextAgent = (agentIndex + 1) % gameState.getNumAgents()
+        nextDepth = depth + 1 if nextAgent == 0 else depth
+        # Maximizing Player, which is the pacman
+        if agentIndex == 0:
+            maxScore = float('-inf')
+            bestAction = None 
+            for action in gameState.getLegalActions(agentIndex): # TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.alphabeta(successor, nextDepth, nextAgent, alpha, beta)[0]
+                if score > maxScore:
+                    maxScore = score
+                    bestAction = action
+                # Update alpha and check for pruning
+                alpha = max(alpha, maxScore)
+                if alpha > beta:
+                    break  # Beta cut-off
+            return maxScore, bestAction
+        # Minimizing Player
+        else:
+            minScore = float('inf')
+            bestAction = None
+            for action in gameState.getLegalActions(agentIndex): # TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.alphabeta(successor, nextDepth, nextAgent, alpha, beta)[0]
+                if score < minScore:
+                    minScore = score
+                    bestAction = action
+                # Update beta and check for pruning
+                beta = min(beta, minScore)
+                if beta < alpha:
+                    break  # Alpha cut-off
+            return minScore, bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -162,8 +230,41 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.expectimax(gameState, depth=0, agentIndex=0)[1]
 
+    def expectimax(self, gameState, depth, agentIndex):
+        # We can stop whenever one of the following conditions is met
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState), None
+        # Determine next agent and increase depth if the next agent is Pacman
+        nextAgent = (agentIndex + 1) % gameState.getNumAgents()
+        nextDepth = depth + 1 if nextAgent == 0 else depth
+        # Maximizing Player, which is the pacman (still optimally)
+        if agentIndex == 0:
+            maxScore = float('-inf')
+            bestAction = None
+            for action in gameState.getLegalActions(agentIndex):# TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.expectimax(successor, nextDepth, nextAgent)[0]
+                if score > maxScore:
+                    maxScore = score
+                    bestAction = action
+            return maxScore, bestAction
+
+        # since this is Expectimax, we should calculate average score
+        else:
+            totalScore = 0
+            actions = gameState.getLegalActions(agentIndex)
+            if len(actions) == 0:
+                return self.evaluationFunction(gameState), None
+            for action in actions: # TODO: whoever is free can take a look at this
+                successor = gameState.generateSuccessor(agentIndex, action)
+                score = self.expectimax(successor, nextDepth, nextAgent)[0]
+                totalScore += score
+            # Should calculate the average score, pay attention to the logic here and maybe improving in the future
+            avgScore = totalScore / len(actions)
+            return avgScore, None
+        
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable

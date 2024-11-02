@@ -14,11 +14,12 @@
 
 # imports from python standard library
 import grading
-import imp
+import importlib
 import optparse
 import os
 import pprint
 import re
+import types
 import sys
 import projectParams
 import random
@@ -129,16 +130,18 @@ def loadModuleString(moduleSource):
     #
     #f = StringIO(moduleCodeDict[k])
     #tmp = imp.load_module(k, f, k, (".py", "r", imp.PY_SOURCE))
-    tmp = imp.new_module(k)
+    tmp = types.ModuleType(k)
     exec(moduleCodeDict[k], tmp.__dict__)
     setModuleName(tmp, k)
     return tmp
 
 
 def loadModuleFile(moduleName, filePath):
-    with open(filePath, 'r') as f:
-        return imp.load_module(moduleName, f, "%s.py" % moduleName, (".py", "r", imp.PY_SOURCE))
-
+    spec = importlib.util.spec_from_file_location(moduleName, filePath)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules[moduleName] = module  # Register the module in sys.modules
+    return module
 
 def readFile(path, root=""):
     "Read file from disk at specified path and return as string"
