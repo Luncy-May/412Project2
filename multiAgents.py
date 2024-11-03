@@ -66,15 +66,36 @@ class ReflexAgent(Agent):
         Print out these variables to see what you're getting, then combine them
         to create a masterful evaluation function.
         """
-        # Useful information you can extract from a GameState (pacman.py)
+        # just some basic set up
         successorGameState = currentGameState.generatePacmanSuccessor(action)
-        newPos = successorGameState.getPacmanPosition()
+        pacmanPos = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
-        newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-
-        "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        capsules = successorGameState.getCapsules()
+        score = successorGameState.getScore()
+        # find the nearest food
+        foodList = newFood.asList()
+        if foodList:
+            closestFoodDist = min([manhattanDistance(pacmanPos, foodPos) for foodPos in foodList])
+            score += 10 / (closestFoodDist + 1)  # maybe improve logic here more a bit
+        # estimate how far the ghosts are and take actions (could improve maybe)
+        for ghostState in newGhostStates:
+            ghostPos = ghostState.getPosition()
+            ghostDist = manhattanDistance(pacmanPos, ghostPos)
+            if ghostState.scaredTimer > 0:
+                score += 200 / (ghostDist + 1) # approach scared ghosts (could improve maybe)
+            else:
+                if ghostDist < 2:
+                    score -= 500  # Strong penalty if the ghost is too close  (could improve maybe)
+                else:
+                    score -= 10 / ghostDist  # vice sersa (could improve maybe)
+        # tell the Pacman to consume capsules
+        if capsules:
+            closestCapsuleDist = min([manhattanDistance(pacmanPos, capsule) for capsule in capsules])
+            score += 25 / (closestCapsuleDist + 1)  # approach closer capsules (could improve maybe)
+        # each time taking an action, think about how many food are left
+        score -= 4 * len(foodList)
+        return score
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -261,7 +282,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                 successor = gameState.generateSuccessor(agentIndex, action)
                 score = self.expectimax(successor, nextDepth, nextAgent)[0]
                 totalScore += score
-            # Should calculate the average score, pay attention to the logic here and maybe improving in the future
+            # we should calculate the average score, pay attention to the logic here and maybe improving in the future
             avgScore = totalScore / len(actions)
             return avgScore, None
         
@@ -273,7 +294,55 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    pacmanPosition = currentGameState.getPacmanPosition()
+    foodGrid = currentGameState.getFood()
+    ghostStates = currentGameState.getGhostStates()
+    scaredTimers = [ghost.scaredTimer for ghost in ghostStates]
+    capsuleLocations = currentGameState.getCapsules()
+    if currentGameState.isWin():
+        return float("inf")
+    if currentGameState.isLose():
+        return float("-inf")
+    totalScore = currentGameState.getScore()
+
+    # try approaching closer food
+    foodDistances = [manhattanDistance(pacmanPosition, foodPos) for foodPos in foodGrid.asList()]
+    if foodDistances:
+        reciprocalFoodScore = 1.0 / sum(foodDistances)  # encouage to approach closer food
+        totalScore += reciprocalFoodScore * 10  
+    # ghost tracking
+    activeGhostDistances = []
+    scaredGhostDistances = []
+    for ghostState, timer in zip(ghostStates, scaredTimers):
+        distanceToGhost = manhattanDistance(pacmanPosition, ghostState.getPosition())
+        if timer > 0:
+            scaredGhostDistances.append(distanceToGhost)  # tell me to eat closer ghosts
+        else:
+            activeGhostDistances.append(distanceToGhost) # vice versa, reversely
+    # avoid non-scared ghosts 
+    if activeGhostDistances:
+        closestActiveGhostDist = min(activeGhostDistances)
+        if closestActiveGhostDist < 2:
+            totalScore -= 500  # add penalty if a ghost is approaching
+        else:
+            totalScore -= 10 / closestActiveGhostDist  # similarly, add a smaller penalty for more distant ghosts
+    # add rewards for scared ghosts 
+    if scaredGhostDistances:
+        closestScaredGhostDist = min(scaredGhostDistances)
+        totalScore += 200 / (closestScaredGhostDist + 1) 
+
+    # eat capsules whenever possible 
+    numberOfCapsules = len(capsuleLocations)
+    if numberOfCapsules > 0:
+        capsuleDistances = [manhattanDistance(pacmanPosition, capsulePos) for capsulePos in capsuleLocations]
+        closestCapsuleDist = min(capsuleDistances)
+        totalScore += 25 / (closestCapsuleDist + 1)  # pick closer capsules 
+        totalScore -= 20 * numberOfCapsules  
+    # see how much food are left
+    totalScore -= 4 * len(foodGrid.asList())
+    # try approaching scared ghosts after all
+    totalScore += sum(scaredTimers) * 2  
+    return totalScore
 
 # Abbreviation
 better = betterEvaluationFunction
